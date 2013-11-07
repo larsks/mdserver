@@ -20,20 +20,32 @@ def parse_args():
     p.add_argument('--static', '-s')
     return p.parse_args()
 
+def render_markdown(text, title=None):
+    global page
+    return page.render(
+            content=markdown.markdown(text),
+            title=title)
+    
 def render_index(path):
     global page
     text = []
 
     for item in os.listdir(path):
-        text.append('- [%s](%s)' % (item, item))
+        itempath=os.path.join(path, item)
+        text.append('- [%s](%s%s)' % (
+            item,
+            item,
+            ('/' if os.path.isdir(itempath) else '')
+            ))
 
-    return page.render(content=markdown.markdown('\n'.join(text)))
+    return render_markdown('\n'.join(text),
+            title='Listing of %s' % path)
 
-def render_markdown(path):
+def render_file(path, title=None):
     global page
     with open(path) as fd:
         content = markdown.markdown(fd.read())
-    return page.render(content=content)
+    return render_markdown(content)
 
 def render_static(path, root='.'):
     return static_file(path, root)
@@ -56,7 +68,7 @@ def render(path):
     if os.path.isdir(path):
         return render_index(path)
     elif path.endswith('.md') or path.endswith('.txt'):
-        return render_markdown(path)
+        return render_file(path)
     else:
         return render_static(path)
 
