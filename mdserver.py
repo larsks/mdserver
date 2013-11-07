@@ -3,12 +3,12 @@
 import os
 import sys
 import argparse
-import mimetypes
 
 import jinja2
 import markdown
-from bottle import route, run, response
+from bottle import route, run, response, static_file
 
+args = None
 page = None
 
 def parse_args():
@@ -17,6 +17,7 @@ def parse_args():
     p.add_argument('--directory', '-d')
     p.add_argument('--template', '-t',
             default='template.html')
+    p.add_argument('--static', '-s')
     return p.parse_args()
 
 def render_index(path):
@@ -34,15 +35,21 @@ def render_markdown(path):
         content = markdown.markdown(fd.read())
     return page.render(content=content)
 
-def render_static(path):
-    content_type = mimetypes.guess_type(path)
-    response.set_header('content-type', content_type[0])
-    with open(path) as fd:
-        return fd.read()
+def render_static(path, root='.'):
+    return static_file(path, root)
 
 @route('/')
 def index():
     return render_index('.')
+
+@route('/static/<path:path>')
+def static(path):
+    global args
+
+    if args.static:
+        return render_static(path, args.static)
+    else:
+        raise HTTPError(body='Static resource directory not configured')
 
 @route('/<path:path>')
 def render(path):
@@ -54,6 +61,7 @@ def render(path):
         return render_static(path)
 
 def main():
+    global args
     global page
 
     args = parse_args()
