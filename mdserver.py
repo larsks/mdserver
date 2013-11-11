@@ -3,20 +3,23 @@
 import os
 import sys
 import argparse
+import errno
 
+import yaml
 import jinja2
 import markdown
-from bottle import route, run, response, static_file
+from bottle import route, run, response, static_file, HTTPError
 
 args = None
 page = None
+default_config = os.path.join(os.environ['HOME'], '.config', 'mdserver', 'mdserver.conf')
 
 def parse_args():
     p = argparse.ArgumentParser()
+    p.add_argument('--config', '-f', default=default_config)
     p.add_argument('--port', '-p', default=8080, type=int)
     p.add_argument('--directory', '-d')
-    p.add_argument('--template', '-t',
-            default='template.html')
+    p.add_argument('--template', '-t')
     p.add_argument('--static', '-s')
     return p.parse_args()
 
@@ -69,14 +72,43 @@ def render(path):
         return render_index(path)
     elif path.endswith('.md') or path.endswith('.txt'):
         return render_file(path)
-    else:
+    elif os.path.isfile(path):
         return render_static(path)
+    elif os.path.isfile('%s.md' % path):
+        return render_file('%s.md' % path)
+    else:
+        raise HTTPError(404)
 
 def main():
     global args
     global page
+    config = {}
 
     args = parse_args()
+
+    if args.config:
+        try:
+            with open(args.config) as fd:
+                config = yaml.load(fd)
+        except IOError as detail:
+            if not detail.errno == errno.ENOENT:
+                raise
+
+    if not args.template:
+        args.template = config.get('mdserver', {}).get('template')
+    if not args.static:
+        args.static = config.get('mdserver', {}).get('static')
+
+    if not args.template:
+        print >>sys.stderr, 'ERROR: you must specify a template'
+        sys.exit(1)
+
+    if not args.static:
+        args.static = os.path.dirname(args.template)
+
+    args.template = os.path.expanduser(args.template)
+    args.static = os.path.expanduser(args.static)
+
     with open(args.template) as fd:
         page = jinja2.Template(fd.read())
 
