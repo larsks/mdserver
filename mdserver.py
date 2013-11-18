@@ -33,8 +33,10 @@ def parse_frontmatter(text):
     content = text
     metadata = {}
 
-    mo = re.match('---\n(.*)\n---\n(.*)', text, re.DOTALL)
+    mo = re.match('---\n(.*?)\n---\n(.*)', text, re.DOTALL)
     if mo:
+        print 'frontmatter:'
+        print mo.group(1)
         metadata = yaml.load(mo.group(1))
         content = mo.group(2)
 
