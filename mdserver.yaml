@@ -1,0 +1,6 @@
+mdserver:
+  listen: 8080
+  template: ~/lib/markdown/template.html
+  static:
+    - [ /static, ~/lib/markdown ]
+

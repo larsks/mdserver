@@ -18,10 +18,10 @@ default_config = os.path.join(os.environ['HOME'], '.config', 'mdserver', 'mdserv
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--config', '-f', default=default_config)
-    p.add_argument('--port', '-p', default=8080, type=int)
+    p.add_argument('--listen', '-l', default='8080')
     p.add_argument('--directory', '-d')
     p.add_argument('--template', '-t')
-    p.add_argument('--static', '-s')
+    p.add_argument('--static', '-s', nargs=2, action='append')
     p.add_argument('--yaml', '-Y', action='store_true')
     return p.parse_args()
 
@@ -75,20 +75,9 @@ def render_file(path, title=None):
 def render_static(path, root='.'):
     return static_file(path, root)
 
-@route('/')
 def index():
     return render_index('.')
 
-@route('/static/<path:path>')
-def static(path):
-    global args
-
-    if args.static:
-        return render_static(path, args.static)
-    else:
-        raise HTTPError(body='Static resource directory not configured')
-
-@route('/<path:path>')
 def render(path):
     if os.path.isdir(path):
         return render_index(path)
@@ -103,9 +92,33 @@ def render(path):
     else:
         raise HTTPError(404)
 
-def main():
+def setup_routes():
+    '''Because we're generating dynamic routes -- that must be defined
+    before the default ones -- we can't use decorator-style routing with
+    @route.'''
+
+    global args
+
+    if args.static:
+        for urlprefix,staticdir in args.static:
+            staticdir = os.path.expanduser(staticdir)
+            route('%s/<path:path>' % urlprefix, 'GET',
+                    lambda path: render_static(path, staticdir))
+
+    route('/', 'GET', index)
+    route('/<path:path>', 'GET', render)
+
+def setup_template():
     global args
     global page
+
+    args.template = os.path.expanduser(args.template)
+
+    with open(args.template) as fd:
+        page = jinja2.Template(fd.read())
+
+def main():
+    global args
     config = {}
 
     args = parse_args()
@@ -127,19 +140,20 @@ def main():
         print >>sys.stderr, 'ERROR: you must specify a template'
         sys.exit(1)
 
-    if not args.static:
-        args.static = os.path.dirname(args.template)
-
-    args.template = os.path.expanduser(args.template)
-    args.static = os.path.expanduser(args.static)
-
-    with open(args.template) as fd:
-        page = jinja2.Template(fd.read())
+    setup_routes()
+    setup_template()
 
     if args.directory:
         os.chdir(args.directory)
 
-    run(port=args.port)
+    if ':' in args.listen:
+        addr, port = args.listen.split(':')
+        port = int(port)
+    else:
+        addr = '127.0.0.1'
+        port = int(args.listen)
+
+    run(host=addr, port=port)
 
 if __name__ == '__main__':
     main()
