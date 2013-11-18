@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import errno
+import re
 
 import yaml
 import jinja2
@@ -21,13 +22,34 @@ def parse_args():
     p.add_argument('--directory', '-d')
     p.add_argument('--template', '-t')
     p.add_argument('--static', '-s')
+    p.add_argument('--yaml', '-Y', action='store_true')
     return p.parse_args()
 
+def parse_frontmatter(text):
+    content = text
+    metadata = {}
+
+    mo = re.match('---\n(.*)\n---\n(.*)', text, re.DOTALL)
+    if mo:
+        metadata = yaml.load(mo.group(1))
+        content = mo.group(2)
+
+    return content, metadata
+
 def render_markdown(text, title=None):
+    global args
     global page
+    metadata = {}
+
+    if args.yaml:
+        text, metadata = parse_frontmatter(text)
+
+    if title:
+        metadata['title'] = title
+
     return page.render(
             content=markdown.markdown(text),
-            title=title)
+            **metadata)
     
 def render_index(path):
     global page
@@ -47,7 +69,7 @@ def render_index(path):
 def render_file(path, title=None):
     global page
     with open(path) as fd:
-        content = markdown.markdown(fd.read())
+        content = fd.read()
     return render_markdown(content)
 
 def render_static(path, root='.'):
@@ -76,6 +98,8 @@ def render(path):
         return render_static(path)
     elif os.path.isfile('%s.md' % path):
         return render_file('%s.md' % path)
+    elif os.path.isfile(path.replace('.html', '.md')):
+        return render_file(path.replace('.html', '.md'))
     else:
         raise HTTPError(404)
 
