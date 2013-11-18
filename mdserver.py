@@ -13,7 +13,11 @@ from bottle import route, run, response, static_file, HTTPError
 
 args = None
 page = None
-default_config = os.path.join(os.environ['HOME'], '.config', 'mdserver', 'mdserver.conf')
+default_config = os.path.join(
+        os.environ['HOME'],
+        '.config',
+        'mdserver',
+        'mdserver.yaml')
 
 def parse_args():
     p = argparse.ArgumentParser()
