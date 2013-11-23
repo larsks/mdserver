@@ -61,7 +61,7 @@ def render_index(path):
     global page
     text = []
 
-    for item in os.listdir(path):
+    for item in sorted(os.listdir(path)):
         itempath=os.path.join(path, item)
         text.append('- [%s](%s%s)' % (
             item,
