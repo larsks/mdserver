@@ -1,32 +1,44 @@
 #!/usr/bin/python
 
-import os
-import sys
 import argparse
 import errno
-import re
-
-import yaml
 import jinja2
+import logging
 import markdown
-from bottle import route, run, response, static_file, HTTPError
+import os
+import re
+import sys
+import yaml
+
+from bottle import route, run, response, \
+    static_file, HTTPError
 
 args = None
 page = None
 default_config = os.path.join(
-        os.environ['HOME'],
-        '.config',
-        'mdserver',
-        'mdserver.yaml')
+    os.environ['HOME'],
+    '.config',
+    'mdserver',
+    'mdserver.yaml')
 
 def parse_args():
     p = argparse.ArgumentParser()
+    p.add_argument('--debug',
+                   action='store_const',
+                   const=logging.DEBUG,
+                   dest='loglevel')
+    p.add_argument('--verbose',
+                   action='store_const',
+                   const=logging.INFO,
+                   dest='loglevel')
     p.add_argument('--config', '-f', default=default_config)
     p.add_argument('--listen', '-l', default='8080')
     p.add_argument('--directory', '-d')
     p.add_argument('--template', '-t')
     p.add_argument('--static', '-s', nargs=2, action='append')
     p.add_argument('--yaml', '-Y', action='store_true')
+
+    p.set_defaults(loglevel=logging.WARN)
     return p.parse_args()
 
 def parse_frontmatter(text):
@@ -81,6 +93,12 @@ def render_file(path, title=None):
 def render_static(path, root='.'):
     return static_file(path, root)
 
+def static_handler(root):
+    def _(path):
+        return static_file(path, root)
+
+    return _
+
 def index():
     return render_index('.')
 
@@ -108,8 +126,10 @@ def setup_routes():
     if args.static:
         for urlprefix,staticdir in args.static:
             staticdir = os.path.expanduser(staticdir)
+            logging.debug('adding dir "%s" for url prefix "%s"',
+                          staticdir, urlprefix)
             route('%s/<path:path>' % urlprefix, 'GET',
-                    lambda path: render_static(path, staticdir))
+                  static_handler(staticdir))
 
     route('/', 'GET', index)
     route('/<path:path>', 'GET', render)
@@ -128,6 +148,9 @@ def main():
     config = {}
 
     args = parse_args()
+
+    logging.basicConfig(
+        level=args.loglevel)
 
     if args.config:
         try:
