@@ -87,8 +87,22 @@ def render_index(path):
 
 def render_file(path, title=None):
     global page
-    with open(path) as fd:
-        content = fd.read()
+    try:
+        with open(path) as fd:
+            content = fd.read()
+
+            try:
+                content = unicode(content)
+            except UnicodeDecodeError:
+                content = content.decode('utf-8')
+
+            print 'content:', content
+    except IOError as detail:
+        if detail.errno == errno.ENOENT:
+            raise HTTPError(404)
+        else:
+            raise
+
     return render_markdown(content)
 
 def render_static(path, root='.'):
