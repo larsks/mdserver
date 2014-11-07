@@ -34,7 +34,8 @@ def parse_args():
     p.add_argument('--config', '-f', default=default_config)
     p.add_argument('--listen', '-l', default='8080')
     p.add_argument('--directory', '-d')
-    p.add_argument('--template', '-t')
+    p.add_argument('--template', '-t',
+                   default=os.environ.get('MDSERVER_TEMPLATE'))
     p.add_argument('--static', '-s', nargs=2, action='append')
     p.add_argument('--yaml', '-Y', action='store_true')
 
