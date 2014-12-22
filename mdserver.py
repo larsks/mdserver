@@ -40,7 +40,13 @@ def parse_args():
     p.add_argument('--yaml', '-Y', action='store_true')
 
     p.set_defaults(loglevel=logging.WARN)
-    return p.parse_args()
+    args = p.parse_args()
+
+    if not args.static:
+        if 'MDSERVER_STATIC' in os.environ:
+            args.static = [(os.environ['MDSERVER_STATIC'].split())]
+
+    return args
 
 def parse_frontmatter(text):
     content = text
